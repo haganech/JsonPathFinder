@@ -71,4 +71,16 @@ const result = new JsonPathFinder().find(json, "//c1[..//b4 = 'bbb']")
 console.log(result)     // Output : "ccc"
 ```
 
+### Get all available results (multiple result)
+```javascript
+console.log(new JsonPathFinder().find(json, "//b2/b3[2]/*", false))     // Output : [ 'bbb', 'aaa2' ]
+console.log(new JsonPathFinder().find(json, "//a4", false))             // Output : [ 'aaa', 'aaa2' ]
+```
+
+### If the result is the object (not string) then, of-course it returns the object
+```javascript
+const result = new JsonPathFinder().find(json, "//a2")
+console.log(result)     // Output : { a3: { a4: 'aaa' } }
+```
+
 And other detail, please refer to the general XPath syntax.

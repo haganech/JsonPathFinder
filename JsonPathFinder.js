@@ -339,13 +339,14 @@ class JsonPathFinder {
         for (const tag of path_parsed.match(/<\$[A-Z][0-9]+>/g)){
             let new_candidates = [];
             for(const _object_tree of result_objects){
-                // console.log(tag + " : " + object_store[tag].value)
+                // console.log(tag + " : " + object_store[tag].value + ", num_of_tree : " + object_tree.length)
                 const res = object_store[tag].resolve(root, _object_tree, object_store[tag].value, object_store, separator)
                 if (res instanceof Array){
                     new_candidates.push(...object_store[tag].resolve(root, _object_tree, object_store[tag].value, object_store, separator));
                 }else{
                     new_candidates.push(res);
                 }
+                
             }
             result_objects = new_candidates;
         }
@@ -370,6 +371,7 @@ class JsonPathFinder {
         let candidates = [
             object_tree.slice()
         ]
+
         for (let i=0; i<temp_input_tokens.length; i++){
             const temp_input_token = temp_input_tokens[i];
             // console.log("temp_input_token " + temp_input_token)
@@ -382,7 +384,6 @@ class JsonPathFinder {
                     new_candidates = [[root]]
                     break candidate_loop;
                 }else if (temp_input_token == "<ROOT_RECUR>"){
-                    new_candidates = [[root]]
                     new_candidates.push(...this._searchPath([[root]], temp_input_tokens[i+1]))
                     break candidate_loop;
                 }else if (temp_input_token == "<CURRENT>"){
@@ -526,7 +527,7 @@ export { JsonPathFinder };
 import * as fs from 'fs';
 let text = fs.readFileSync("test.json");
 let json = JSON.parse(text);
-console.log(new JsonPathFinder().find(json, "//c1[..//b4 = 'bbb1']"))
+console.log(new JsonPathFinder().find(json, "//a4", false))
 
 // let [text, store] = new JsonPathFinder()._splitToken("/a1//b3[contains(.//a4, 'a2') and ../c1 = 'ccc'][2]/b4")
 // console.log(text)
