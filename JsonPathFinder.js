@@ -12,12 +12,16 @@ class JsonPathFinder {
         for (const nestedPathString of nestedPathStringArray){
             try{
                 let [path_parsed, object_store] = this._splitToken(nestedPathString);
-                const current_obj = this._resolveToken(rootObj, [rootObj], path_parsed, object_store, separator);
-                if (current_obj != null && current_obj != undefined && current_obj instanceof Array && current_obj.length > 0){
+                // console.log(path_parsed)
+                // console.log(object_store)
+                const current_objs = this._resolveToken(rootObj, [rootObj], path_parsed, object_store, separator);
+                if (current_objs != null && current_objs != undefined && current_objs instanceof Array && current_objs.length > 0){
                     if (returnSingle == true){
-                        return current_obj[0];
+                        return current_objs[0][current_objs[0].length -1];
                     }else{
-                        all_matched_obj.push(...current_obj);
+                        for (const current_obj of current_objs){
+                            all_matched_obj.push(current_obj[current_obj.length -1]);
+                        }
                     }
                 }
             }catch(e){
@@ -34,9 +38,8 @@ class JsonPathFinder {
         }
     }
 
-    _splitToken(path_original, separator = '/'){
+    _splitToken(path_original, object_store = {}, separator = '/'){
         let path_parsed = this._escape(path_original)
-        let object_store = {};
 
         const regex_tokens = [
             {
@@ -74,7 +77,7 @@ class JsonPathFinder {
             {
                 regex: /(?:[^A-Za-z$\/.]|^)([A-Za-z.\/][^\[\]<>= (),]+\[<\$[BCMP][0-9]+>\])/,   // //a1/a2[./b4 = 'test']
                 prefix: "P",
-                type: "path__with_condition",
+                type: "path_with_condition",
                 resolve: (root, object_tree, value, object_store, separator) => {
                     let [orig, path, condition_tag] = value.match(/([^\[ ]+)[ ]*\[[ ]*([^\] ]+)[ ]*\]/);
                     let candidates = this._resolvePath(root, object_tree, path, object_store, separator);
@@ -110,7 +113,7 @@ class JsonPathFinder {
                 prefix: "P",
                 type: "path_list",
                 resolve: (root, object_tree, value, object_store, separator) => {
-                    this._resolveToken(root, object_tree, value, object_store, separator);
+                    return this._resolveToken(root, object_tree, value, object_store, separator);
                 }
             },
             {
@@ -193,11 +196,11 @@ class JsonPathFinder {
             },
         ]
 
-        recur: for(let i=0; i<1000; i++){
+        recur: for(let i=0; i<10; i++){
             let isHit = false;
             for (const regex_token of regex_tokens){
                 let path_replaced = this._replaceToken(path_parsed, object_store, regex_token)
-                if (path_parsed.length != path_replaced.length){
+                if (path_parsed.toString() !== path_replaced.toString()){
                     path_parsed = path_replaced;
                     continue recur;
                 }
@@ -207,6 +210,66 @@ class JsonPathFinder {
         // console.log(path_parsed)
         // console.log(object_store)
         return [path_parsed, object_store]
+    }
+    
+    _replaceToken(str, object_store, regex_obj){
+        let hit_array;
+        let r = new RegExp(regex_obj.regex, 'g');
+        while ((hit_array = r.exec(str)) !== null) {
+            if (regex_obj.type == 'method' && hit_array[1].match(/^(AND|OR)[^A-Za-z]+.*/i)){
+                continue;
+            }
+            if (regex_obj.type.match('path') && hit_array[1].match(/^(AND|OR|CONTAINS).*/i)){
+                continue;
+            }
+            // if(regex_obj.type == 'path_z'){
+            //     console.log(hit_array[0])
+            //     console.log(hit_array)
+            // }
+            let seq = this.iferror(()=>{ return Object.keys(object_store).join("").match(new RegExp(regex_obj.prefix, 'g')) }, "").length;
+            let temp_str = str.split("")
+            let tag = `<$${regex_obj.prefix}${seq+1}>`;
+            object_store[tag] = {
+                value: hit_array[1],
+                type: regex_obj.type,
+                resolve: regex_obj.resolve
+            };
+            const str_after_replace = hit_array[0].replace(hit_array[1], tag);
+            temp_str.splice(r.lastIndex - hit_array[0].length, hit_array[0].length, str_after_replace);
+            str = temp_str.join("")
+
+            if (regex_obj.type.match('path_list')){
+                let i = 0
+                for (const _tag of hit_array[1].match(/<\$[A-Z][0-9]+>/g)){
+                    if (i != 0){
+                        let reversed_text = this._reverseObjectStore(_tag, object_store);
+                        if (reversed_text.match(/^\/.*/)){
+                            let [new_text, new_object_store] = this._splitToken("." + reversed_text, object_store);
+                            object_store = new_object_store
+                            object_store[_tag] = object_store[new_text];
+                        }
+                    }
+                    i++;
+                }
+            }
+        }
+        return str;
+    }
+
+    _reverseObjectStore(path_parsed, object_store){
+        // console.log("_reverseObjectStore")
+        let _path_parsed = path_parsed;
+        recur: for(let i=0; i<1000; i++){
+            let isHit = false;
+            for (const tag of Object.keys(object_store)){
+                if(_path_parsed.match(tag.replace(/\$/g, "\\$"))){
+                    _path_parsed = _path_parsed.replace(tag, object_store[tag].value)
+                    continue recur;
+                }
+            }
+            break recur;
+        }
+        return _path_parsed;
     }
 
     _resolveCondition(root, object_tree, value, object_store, separator = "/"){
@@ -271,6 +334,8 @@ class JsonPathFinder {
     _resolveToken(root, object_tree, path_parsed, object_store, separator = "/"){
         let result_objects = [object_tree];
 
+        // console.log(object_store)
+        // console.log(path_parsed)
         for (const tag of path_parsed.match(/<\$[A-Z][0-9]+>/g)){
             let new_candidates = [];
             for(const _object_tree of result_objects){
@@ -295,8 +360,9 @@ class JsonPathFinder {
     _resolvePath(root, object_tree, input_string, object_store, separator = "/"){
         let temp_input_string = input_string;
         temp_input_string = input_string.replace(/\.\.\//g, '<PARENT>/')
+        temp_input_string = temp_input_string.replace(/^\/\//g, '<ROOT_RECUR>/')
         temp_input_string = temp_input_string.replace(/^\//g, '<ROOT>/')
-        temp_input_string = temp_input_string.replace(/^\.\//g, '<CURRENT>/')
+        temp_input_string = temp_input_string.replace(/^\.(?:\/)/g, '<CURRENT>/')
         temp_input_string = temp_input_string.replace(/\/\//g, '/<RECUR>/')
         temp_input_string = temp_input_string.replace(/\*/g, '<WILDCARD>')
         let temp_input_tokens = temp_input_string.split(separator)
@@ -314,6 +380,10 @@ class JsonPathFinder {
                     continue;
                 }else if (temp_input_token == "<ROOT>"){
                     new_candidates = [[root]]
+                    break candidate_loop;
+                }else if (temp_input_token == "<ROOT_RECUR>"){
+                    new_candidates = [[root]]
+                    new_candidates.push(...this._searchPath([[root]], temp_input_tokens[i+1]))
                     break candidate_loop;
                 }else if (temp_input_token == "<CURRENT>"){
                     new_candidates.push(candidate.slice());
@@ -346,7 +416,7 @@ class JsonPathFinder {
             }
             // console.log(new_candidates)
             candidates = new_candidates;
-            if (temp_input_token == "<RECUR>"){
+            if (temp_input_token == "<RECUR>" || temp_input_token == "<ROOT_RECUR>"){
                 i = i + 1;
             }
         }
@@ -385,33 +455,6 @@ class JsonPathFinder {
         return result_candidates;
     }
 
-    _replaceToken(str, object_store, regex_obj){
-        let hit_array;
-        let r = new RegExp(regex_obj.regex, 'g');
-        while ((hit_array = r.exec(str)) !== null) {
-            if (regex_obj.type == 'method' && hit_array[1].match(/^(AND|OR)[^A-Za-z]+.*/i)){
-                continue;
-            }
-            if (regex_obj.type.match('path') && hit_array[1].match(/^(AND|OR|CONTAINS).*/i)){
-                continue;
-            }
-            // if(regex_obj.type == 'path_z'){
-            //     console.log(hit_array[0])
-            //     console.log(hit_array)
-            // }
-            let seq = this.iferror(()=>{ return Object.keys(object_store).join("").match(new RegExp(regex_obj.prefix, 'g')) }, "").length;
-            let temp_str = str.split("")
-            object_store[`<$${regex_obj.prefix}${seq+1}>`] = {
-                value: hit_array[1],
-                type: regex_obj.type,
-                resolve: regex_obj.resolve
-            };
-            const str_after_replace = hit_array[0].replace(hit_array[1], `<$${regex_obj.prefix}${seq+1}>`);
-            temp_str.splice(r.lastIndex - hit_array[0].length, hit_array[0].length, str_after_replace);
-            str = temp_str.join("")
-        }
-        return str;
-    }
 
     _escape(str){
         let temp_str = str.replace(/\\\\/g, (matched)=>{
@@ -432,9 +475,6 @@ class JsonPathFinder {
         })
     }
 
-    _escapeForRegex(str){
-        return str.replace("/", "\\/").replace("\\", "\\\\")
-    }
     isDict(v) {
         return typeof v==='object' && v!==null && !(v instanceof Array) && !(v instanceof Date);
     }
@@ -460,24 +500,35 @@ class JsonPathFinder {
 
 export { JsonPathFinder };
 
-// let a = {
-//     a1:{
-//         a2:{
-//             a3: {
-//                 a4: "aaa"
+// let json = {
+//     "a1": {
+//         "a2": {
+//             "a3": {
+//                 "a4": "aaa"
 //             }
 //         },
-//         b2:{
-//             c1:"ccc",
-//             b3:{
-//                 b4:"bbb",
-//                 a4:"aaa2"
-//             }
+//         "b2": {
+//             "c1": "ccc",
+//             "b3": [
+//                 {},
+//                 {
+//                     "b4": "bbb",
+//                     "a4": "aaa2"
+//                 }
+//             ]
 //         }
 //     }
 // }
 
-// console.log (new JsonPathFinder()._splitTokens("(//subMenuItems/*[((./title)) = '\\\\Live chat \\\\replay']//continuation//continuation/conte/kl)[3]/tag1[./*[eca = 'aa']][2]/test[./oewa = 'abc' and contains (eda, 'eawea') and (12)]/eee1/eee2"))
+// console.log (new JsonPathFinder()._splitToken("(//subMenuItems/*[((./title)) = '\\\\Live chat \\\\replay']//continuation//continuation/conte/kl)[3]/tag1[./*[eca = 'aa']][2]/test[./oewa = 'abc' and contains (eda, 'eawea') and (12)]/eee1/eee2"))
 // console.log(new JsonPathFinder().find(a, "/a1//b3[contains(./a4, 'a2') and ../c1 = 'ccc']"))
 
+import * as fs from 'fs';
+let text = fs.readFileSync("test.json");
+let json = JSON.parse(text);
+console.log(new JsonPathFinder().find(json, "//c1[..//b4 = 'bbb1']"))
 
+// let [text, store] = new JsonPathFinder()._splitToken("/a1//b3[contains(.//a4, 'a2') and ../c1 = 'ccc'][2]/b4")
+// console.log(text)
+// console.log(store)
+// console.log(new JsonPathFinder()._reverseObjectStore(text, store))
