@@ -524,10 +524,10 @@ export { JsonPathFinder };
 // console.log (new JsonPathFinder()._splitToken("(//subMenuItems/*[((./title)) = '\\\\Live chat \\\\replay']//continuation//continuation/conte/kl)[3]/tag1[./*[eca = 'aa']][2]/test[./oewa = 'abc' and contains (eda, 'eawea') and (12)]/eee1/eee2"))
 // console.log(new JsonPathFinder().find(a, "/a1//b3[contains(./a4, 'a2') and ../c1 = 'ccc']"))
 
-import * as fs from 'fs';
-let text = fs.readFileSync("test.json");
-let json = JSON.parse(text);
-console.log(new JsonPathFinder().find(json, "//a4", false))
+// import * as fs from 'fs';
+// let text = fs.readFileSync("test.json");
+// let json = JSON.parse(text);
+// console.log(new JsonPathFinder().find(json, "//a4", false))
 
 // let [text, store] = new JsonPathFinder()._splitToken("/a1//b3[contains(.//a4, 'a2') and ../c1 = 'ccc'][2]/b4")
 // console.log(text)

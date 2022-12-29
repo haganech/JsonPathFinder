@@ -4,6 +4,30 @@ This is the library to search the JSON element(s) / JavaScript with deep-nested 
 Usually we use XPath to search the XML element but this library searches such element using similar way. [Introduction to using XPath in JavaScript - XPath | MDN](https://developer.mozilla.org/en-US/docs/Web/XPath/Introduction_to_using_XPath_in_JavaScript)
 
 ## How to use it
+You can import the class as the standard export package like this.
+```javascript
+import { JsonPathFinder } from './JsonPathFinder.js';
+
+const target_json_text = `
+{
+    "a1":{
+        "a2":{
+            "a3": "text"
+        }
+    }
+}
+`;
+
+const jsonPathFinder = new JsonPathFinder();
+const result = jsonPathFinder.find(
+    JSON.parse(target_json_text),
+    "//a3",
+);
+
+console.log(result)     // Output : "text"
+```
+
+## Available syntax
 If there's this kind of JSON,
 ```json
 {
