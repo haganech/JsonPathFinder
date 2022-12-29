@@ -83,12 +83,6 @@ const result = new JsonPathFinder().find(json, "//b3[2]/b4")
 console.log(result)     // Output : "bbb"
 ```
 
-### Order in the array
-```javascript
-const result = new JsonPathFinder().find(json, "//b3[2]/b4")
-console.log(result)     // Output : "bbb"
-```
-
 ### Condition
 ```javascript
 const result = new JsonPathFinder().find(json, "//c1[..//b4 = 'bbb']")
