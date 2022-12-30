@@ -55,8 +55,8 @@ Then you can search the object like this
 import * as fs from 'fs';
 let text = fs.readFileSync("test.json");
 let json = JSON.parse(text);
-const result = new JsonPathFinder().find(json, "/a1//b3[contains(./a4, 'a2') and ../c1 = 'ccc']")
-console.log(result)     // Output : "bbb"
+const result = new JsonPathFinder().find(json, "/a1//b3[contains(.//a4, 'a2') and ../c1 = 'ccc']")
+console.log(result)     // Output : [ {}, { b4: 'bbb', a4: 'aaa2' } ]
 ```
 
 ### Child token hierarchy
@@ -88,6 +88,14 @@ console.log(result)     // Output : "bbb"
 const result = new JsonPathFinder().find(json, "//c1[..//b4 = 'bbb']")
 console.log(result)     // Output : "ccc"
 ```
+You can use these operators in the condition : "=", "!=", "<", ">", "AND", "OR".
+
+### Partial match of the text
+```javascript
+const result = new JsonPathFinder().find(json, "//a4[contains(text(), 'a2')]")
+console.log(result)     // Output : [ 'aaa2' ]
+```
+`text()` matches with current text element.
 
 ### Get all available results (multiple result)
 ```javascript

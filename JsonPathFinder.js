@@ -67,6 +67,53 @@ class JsonPathFinder {
                 }
             },
             {
+                regex: /([A-Za-z_][A-Za-z0-9_]*[ ]*\([0-9A-Z<>\$ ,]*\))/,      //  contains(./a, 'aaa')
+                prefix: "M",
+                type: "method",
+                resolve: (root, object_tree, value, object_store, separator) => {
+                    let [orig, method_name, method_arg] = value.match(/([A-Za-z_][A-Za-z0-9_]*)[ ]*\(([^\(\)]*)\)/);
+                    let args = [];
+                    if (this.trim(method_arg) != ""){
+                        for (const _args of method_arg.split(",")){
+                            args.push(this._resolveToken(root, object_tree, this.trim(_args), object_store, separator));
+                        }
+                    }
+                    method_name = method_name.toLowerCase();
+                    const current_object = object_tree[object_tree.length -1];
+
+                    const methods = {
+                        "contains": (args)=>{
+                            if (args.length >= 2){
+                                if (args[0].length > 0 && args[0][0].length > 0 && (typeof args[0][0][args[0][0].length - 1]) == 'string'){
+                                    let evaluate_text = ""
+                                    if ((typeof args[0]) == 'string'){
+                                        evaluate_text = args[0]
+                                    }else if(args[0] instanceof Array && args[0][0] instanceof Array){
+                                        evaluate_text = args[0][0][args[0][0].length - 1].toString()
+                                    }
+                                    return evaluate_text.includes(args[1].toString())
+                                }
+                            }else{
+                                return null;
+                            }
+                        },
+                        "text": (args)=>{
+                            if ((typeof current_object) == 'string'){
+                                return current_object.toString();
+                            }else{
+                                "";
+                            }
+                        }
+                    }
+
+                    if (method_name in methods){
+                        return methods[method_name](args);
+                    }else{
+                        return false;
+                    }
+                }
+            },
+            {
                 regex: /(?:[^A-Za-z$\/.]|^)(([.\/]*[A-Za-z*][A-Za-z0-9]*)(\/[A-Za-z*]*[A-Za-z0-9]*)*)/,     // //a1/a2/*/a4//b1
                 prefix: "P",
                 type: "path_simple",
@@ -101,7 +148,7 @@ class JsonPathFinder {
                     let candidates_after_condition = [];
                     for (const candidate of candidates){
                         const res = this._resolveToken(root, candidate, condition_tag, object_store, separator)
-                        if (res === true || res.length > 0){
+                        if (res === true || ((res instanceof Array) && res.length > 0)){
                             candidates_after_condition.push(candidate)
                         }
                     }
@@ -136,37 +183,6 @@ class JsonPathFinder {
                         }
                     }
                     return new_candidates;
-                }
-            },
-            {
-                regex: /([A-Za-z_][A-Za-z0-9_]*[ ]*\([^\(\)]+\))/,      //  contains(./a, 'aaa')
-                prefix: "M",
-                type: "method",
-                resolve: (root, object_tree, value, object_store, separator) => {
-                    let [orig, method_name, method_arg] = value.match(/([A-Za-z_][A-Za-z0-9_]*)[ ]*\(([^\(\)]+)\)/);
-                    let args = [];
-                    for (const _args of method_arg.split(",")){
-                        args.push(this._resolveToken(root, object_tree, this.trim(_args), object_store, separator));
-                    }
-                    method_name = method_name.toLowerCase();
-
-                    const methods = {
-                        "contains": (args)=>{
-                            if (args.length >= 2){
-                                if (args[0].length > 0 && args[0][0].length > 0 && (typeof args[0][0][args[0][0].length - 1]) == 'string'){
-                                    return args[0][0][args[0][0].length - 1].toString().includes(args[1].toString())
-                                }
-                            }else{
-                                return null;
-                            }
-                        }
-                    }
-
-                    if (method_name in methods){
-                        return methods[method_name](args);
-                    }else{
-                        return false;
-                    }
                 }
             },
             {
@@ -527,7 +543,7 @@ export { JsonPathFinder };
 // import * as fs from 'fs';
 // let text = fs.readFileSync("test.json");
 // let json = JSON.parse(text);
-// console.log(new JsonPathFinder().find(json, "//a4", false))
+// console.log(new JsonPathFinder().find(json, "//b2/b3[2]/*", false))
 
 // let [text, store] = new JsonPathFinder()._splitToken("/a1//b3[contains(.//a4, 'a2') and ../c1 = 'ccc'][2]/b4")
 // console.log(text)
