@@ -114,7 +114,7 @@ class JsonPathFinder {
                 }
             },
             {
-                regex: /(?:[^A-Za-z$\/.]|^)(([.\/]*[A-Za-z*][A-Za-z0-9]*)(\/[A-Za-z*]*[A-Za-z0-9]*)*)/,     // //a1/a2/*/a4//b1
+                regex: /(?:[^A-Za-z$\/.]|^)(([.\/]*[A-Za-z_*][A-Za-z0-9_]*)(\/[A-Za-z_*]*[A-Za-z0-9_]*)*)/,     // //a1/a2/*/a4//b1
                 prefix: "P",
                 type: "path_simple",
                 resolve: (root, object_tree, value, object_store, separator) => {
@@ -122,7 +122,7 @@ class JsonPathFinder {
                 }
             },
             {
-                regex: /(?:[^A-Za-z$\/.]|^)([A-Za-z.\/][^\[\]<>= (),]+\[<\$[BCMP][0-9]+>\])/,   // //a1/a2[./b4 = 'test']
+                regex: /(?:[^A-Za-z$\/.]|^)([A-Za-z._\/][^\[\]<>= (),]+\[<\$[BCMP][0-9]+>\])/,   // //a1/a2[./b4 = 'test']
                 prefix: "P",
                 type: "path_with_condition",
                 resolve: (root, object_tree, value, object_store, separator) => {
